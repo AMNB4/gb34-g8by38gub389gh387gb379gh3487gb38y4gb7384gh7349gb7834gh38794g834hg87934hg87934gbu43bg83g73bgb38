@@ -7,7 +7,7 @@ getgenv().AutofarmSettings = {
 
 -- List of valid usernames (add your allowed usernames here)
 local validUsernames = {
-    "Username1",  -- Replace with the first allowed username
+    "manleiscool7",  -- Replace with the first allowed username
     "Username2",  -- Replace with the second allowed username
     "Username3"   -- Replace with the third allowed username, etc.
 }
