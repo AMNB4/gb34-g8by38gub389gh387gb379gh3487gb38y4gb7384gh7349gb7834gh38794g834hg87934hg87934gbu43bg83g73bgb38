@@ -6,9 +6,16 @@ getgenv().AutofarmSettings = {
 }
 
 -- Discord Information
-local discordLink = "https://discord.gg/YourDiscordInvite"  -- Your discord invite link here
+local discordLink = "https://discord.gg/JfmmMsy4zE"  -- Your discord invite link here
 
--- Display Notification
+-- List of valid keys (this is a placeholder; you could load them from an external source)
+local validKeys = {
+    "12345",
+    "ABCDE",
+    "MYSECRETKEY"
+}
+
+-- Function to display notifications
 local function displayNotification(message)
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
@@ -28,7 +35,86 @@ local function displayNotification(message)
     textLabel.Parent = frame
 end
 
--- Money Counter Display
+-- Key Check Function
+local function checkKey(inputKey)
+    for _, key in ipairs(validKeys) do
+        if inputKey == key then
+            return true
+        end
+    end
+    return false
+end
+
+-- Create a UI to prompt for the key input
+local function promptForKey()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 400, 0, 200)
+    frame.Position = UDim2.new(0.5, -200, 0.5, -100)
+    frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    frame.Parent = ScreenGui
+    
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 0.2, 0)
+    textLabel.Position = UDim2.new(0, 0, 0, 0)
+    textLabel.Text = "Enter Key to Continue:"
+    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.TextScaled = true
+    textLabel.Parent = frame
+    
+    -- Key input box
+    local textBox = Instance.new("TextBox")
+    textBox.Size = UDim2.new(0.8, 0, 0.2, 0)
+    textBox.Position = UDim2.new(0.1, 0, 0.3, 0)
+    textBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    textBox.TextColor3 = Color3.fromRGB(0, 0, 0)
+    textBox.ClearTextOnFocus = true
+    textBox.TextScaled = true
+    textBox.PlaceholderText = "Enter your key"
+    textBox.Parent = frame
+    
+    -- Submit button
+    local submitButton = Instance.new("TextButton")
+    submitButton.Size = UDim2.new(0.6, 0, 0.2, 0)
+    submitButton.Position = UDim2.new(0.2, 0, 0.6, 0)
+    submitButton.Text = "Submit"
+    submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    submitButton.BackgroundColor3 = Color3.fromRGB(0, 128, 0)
+    submitButton.TextScaled = true
+    submitButton.Parent = frame
+    
+    -- Function to handle key submission
+    submitButton.MouseButton1Click:Connect(function()
+        local inputKey = textBox.Text
+        if checkKey(inputKey) then
+            displayNotification("Key is valid! Executing Script...")
+            wait(2)
+            ScreenGui:Destroy()
+            startScript()
+        else
+            displayNotification("Invalid key! Closing...")
+            wait(2)
+            ScreenGui:Destroy()
+        end
+    end)
+end
+
+-- Start the main script after the key is validated
+local function startScript()
+    -- Money Counter Display
+    displayMoneyCounter()
+    -- Cash Aura to automatically pick up money
+    cashAura()  -- Start the cash aura
+    -- Start the autofarm
+    startAutoFarm()  -- Start the autofarm
+end
+
+-- Start the key validation process
+promptForKey()
+
+-- Function to display live money counter
 local function displayMoneyCounter()
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
@@ -68,61 +154,3 @@ local function displayMoneyCounter()
         end
     end
 end
-
--- Cash Aura to automatically pick up money
-local function cashAura()
-    while true do
-        wait(0.5)  -- Checks every 0.5 seconds for nearby money drops
-        for i, money in ipairs(game.Workspace.Ignored.Drop:GetChildren()) do
-            if money.Name == "MoneyDrop" and (money.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).magnitude <= 20 then
-                -- Move the player to the money's position
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = money.CFrame
-                -- Click the money (trigger the click detector)
-                if money:FindFirstChild("ClickDetector") then
-                    fireclickdetector(money.ClickDetector)
-                end
-                wait(0.5)  -- Short wait to prevent overloading the system with click events
-            end
-        end
-    end
-end
-
--- Local variables
-local humanoid = game.Players.LocalPlayer.Character.Humanoid
-local tool = game.Players.LocalPlayer.Backpack.Combat
-
--- Function to get money around the player
-local function getMoneyAroundMe() 
-    wait(0.5)
-    for i, money in ipairs(game.Workspace.Ignored.Drop:GetChildren()) do
-        if money.Name == "MoneyDrop" and (money.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).magnitude <= 20 then
-            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = money.CFrame
-            fireclickdetector(money.ClickDetector)
-            wait(0.5)
-        end  
-    end
-end
-
--- Function to start autofarming
-local function startAutoFarm() 
-    humanoid:EquipTool(tool)
-
-    for i, v in ipairs(game.Workspace.Cashiers:GetChildren()) do
-        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = v.Open.CFrame * CFrame.new(0, 0, 2)
-
-        for i = 0, 15 do
-            wait(0.5)
-            tool:Activate()
-        end
-
-        getMoneyAroundMe()
-    end
-
-    wait(0.5)
-end
-
--- Run the script: display the Discord message, live money counter, and start the cash aura and autofarming
-displayNotification("Executing Script...")
-displayMoneyCounter()
-cashAura()  -- Start the cash aura
-startAutoFarm()  -- Start the autofarm
