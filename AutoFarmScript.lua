@@ -5,12 +5,8 @@ getgenv().AutofarmSettings = {
     ["Underground"] = true
 }
 
--- List of valid usernames (add your allowed usernames here)
-local validUsernames = {
-    "manleiscool7",  -- Replace with the first allowed username
-    "Username2",  -- Replace with the second allowed username
-    "Username3"   -- Replace with the third allowed username, etc.
-}
+-- New Pastebin URL to the keys (use the raw Pastebin link)
+local pastebinLink = "https://pastebin.com/raw/7B5kPt5p"  -- Updated Pastebin link for keys
 
 -- Discord Information
 local discordLink = "https://discord.gg/JfmmMsy4zE"  -- Your discord invite link here
@@ -35,34 +31,140 @@ local function displayNotification(message)
     textLabel.Parent = frame
 end
 
--- Function to check if the player's username is valid
-local function checkUsername()
-    for _, username in ipairs(validUsernames) do
-        if game.Players.LocalPlayer.Name == username then
-            return true
+-- Function to fetch keys from the Pastebin link
+local function fetchKeysFromPastebin()
+    local HttpService = game:GetService("HttpService")
+    local success, response = pcall(function()
+        return HttpService:GetAsync(pastebinLink)  -- Fetch raw Pastebin data
+    end)
+
+    if success then
+        local keys = {}
+        for key in string.gmatch(response, "[^\r\n]+") do  -- Split by newlines
+            table.insert(keys, key)
+        end
+        return keys
+    else
+        displayNotification("Failed to fetch keys from Pastebin.")
+        return {}
+    end
+end
+
+-- List of valid keys from Pastebin
+local validKeys = fetchKeysFromPastebin()
+
+-- Key system
+local usedKeys = {}  -- To track which keys have been used
+local playerData = {}  -- Table to store player-specific data
+
+-- Function to check if the entered key is valid and not already used
+local function isKeyValid(key)
+    for _, validKey in ipairs(validKeys) do
+        if key == validKey then
+            -- Check if the key has already been used
+            if not usedKeys[key] then
+                usedKeys[key] = true  -- Mark the key as used
+                return true
+            else
+                displayNotification("This key has already been used.")
+                return false
+            end
         end
     end
     return false
 end
 
--- Main script logic
-local function startScript()
-    if checkUsername() then
-        -- Money Counter Display
-        displayMoneyCounter()
-        -- Cash Aura to automatically pick up money
-        cashAura()  -- Start the cash aura
-        -- Start the autofarm
-        startAutoFarm()  -- Start the autofarm
-    else
-        displayNotification("Invalid username! Script will not run.")
+-- Function to automatically collect DHC when ATMs are nearby or broken
+local function autoCollectDHC()
+    local player = game.Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")  -- Get the player's position
+    
+    -- Define a detection radius (how far away the player should detect ATMs and DHC)
+    local detectionRadius = 10  -- You can adjust the distance as needed
+    
+    -- Function to check if an object is within the detection range
+    local function isWithinRange(object, position, range)
+        return (object.Position - position).Magnitude <= range
+    end
+    
+    -- Function to scan for ATMs and DHC
+    local function scanForATMAndDHC()
+        local playerPosition = hrp.Position
+
+        -- Scan all parts in the game workspace
+        for _, object in pairs(workspace:GetChildren()) do
+            -- Check if the object is within the detection radius
+            if isWithinRange(object, playerPosition, detectionRadius) then
+                -- If it's an ATM or a DHC (based on criteria), auto-collect DHC
+                -- Example condition: If it's a part that has a DHC object as a child
+                if object:IsA("Part") and object:FindFirstChild("DHC") then
+                    local dhc = object:FindFirstChild("DHC")
+                    if dhc then
+                        dhc.Parent = player.Backpack  -- Automatically collect DHC
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Continuously scan every 1 second to detect ATMs and DHC objects
+    while true do
+        wait(1)
+        scanForATMAndDHC()
     end
 end
 
--- Start the script
-startScript()
+-- Function to save player data based on the entered key
+local function savePlayerData(key)
+    playerData[key] = playerData[key] or {}
+    -- Example: Store player progress, such as cash or items
+    -- playerData[key].money = game.Players.LocalPlayer.leaderstats.Money.Value
+end
 
--- Function to display live money counter
+-- Main script logic
+local function startScript()
+    -- Money Counter Display
+    displayMoneyCounter()
+    -- Cash Aura to automatically pick up money
+    cashAura()  -- Start the cash aura
+    -- Start the autofarm
+    startAutoFarm()  -- Start the autofarm
+    
+    -- Start auto-collecting DHC when ATMs are detected
+    autoCollectDHC()
+
+    -- Save the player data after starting the script
+    local key = game.Players.LocalPlayer.PlayerGui:WaitForChild("TextBox") -- Input box where player enters the key
+    savePlayerData(key.Text)  -- Save data associated with the entered key
+end
+
+-- Listen for key input and automatically start script if key is valid
+local function promptForKey()
+    local player = game.Players.LocalPlayer
+    local keyBox = Instance.new("TextBox")
+    keyBox.Size = UDim2.new(0, 200, 0, 50)
+    keyBox.Position = UDim2.new(0.5, -100, 0.5, -25)
+    keyBox.PlaceholderText = "Enter your key"
+    keyBox.Parent = player.PlayerGui
+
+    keyBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            local enteredKey = keyBox.Text
+            if isKeyValid(enteredKey) then
+                displayNotification("Key is valid, starting the script...")
+                startScript()  -- Start script if key is valid
+            else
+                displayNotification("Invalid key! Please enter a valid key.")
+            end
+        end
+    end)
+end
+
+-- Start the key prompt
+promptForKey()
+
+-- Function to display live money counter and running time
 local function displayMoneyCounter()
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
@@ -91,8 +193,19 @@ local function displayMoneyCounter()
     moneyLabel.TextScaled = true
     moneyLabel.Parent = frame
 
+    -- Running time label
+    local timeLabel = Instance.new("TextLabel")
+    timeLabel.Size = UDim2.new(1, 0, 0.2, 0)
+    timeLabel.Position = UDim2.new(0, 0, 0.8, 0)
+    timeLabel.Text = "Running Time: 0s"
+    timeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    timeLabel.TextScaled = true
+    timeLabel.Parent = frame
+
     -- Update Money Count live
     local previousMoney = 0
+    local startTime = tick()  -- Get the start time of the script
+
     while true do
         wait(1)  -- Update every second
         local currentMoney = game.Players.LocalPlayer.leaderstats.Money.Value
@@ -100,5 +213,9 @@ local function displayMoneyCounter()
             moneyLabel.Text = "Money Earned: $" .. tostring(currentMoney)
             previousMoney = currentMoney
         end
+
+        -- Update Running Time
+        local runningTime = math.floor(tick() - startTime)  -- Calculate the running time in seconds
+        timeLabel.Text = "Running Time: " .. runningTime .. "s"
     end
 end
